@@ -9,12 +9,10 @@ const sweetMessages = [
   "我错了，原谅我好吗？",
   "没有你的日子就像没有阳光一样暗淡",
   "你是我生命中最重要的人",
-  "我保证以后会更加珍惜你",
   "你的笑容是我最大的幸福",
   "我真的很想你",
   "我爱你胜过一切",
   "你是我的全世界",
-  "我会用一生来弥补",
   "没有你，我的世界不完整"
 ];
 
@@ -148,7 +146,7 @@ export default function ForgivenessGame() {
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-4">谢谢你原谅我！</h2>
             <p className="text-gray-600 mb-8">
-              我保证以后会更加珍惜你，爱护你，不再惹你生气
+              我保证以后会更加珍惜你，爱护你
             </p>
             <motion.button
               whileHover={{ scale: 1.05 }}

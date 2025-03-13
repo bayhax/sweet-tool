@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { FaHeart, FaRegSadTear } from 'react-icons/fa';
 import Header from '@/components/Header';

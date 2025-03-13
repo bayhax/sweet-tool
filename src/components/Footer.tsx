@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { FaGithub, FaHeart } from 'react-icons/fa';
 
