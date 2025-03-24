@@ -2,15 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FaAngry, 
-  FaSmile, 
-  FaBomb, 
-  FaHandRock, 
-  FaTools, 
-  FaMusic,
-  FaBolt
-} from 'react-icons/fa';
+import { FaSmile } from 'react-icons/fa';
 
 // 定义游戏中的物品类型
 interface Item {
@@ -37,7 +29,6 @@ interface Level {
 }
 
 // 定义常量
-const MAX_ITEMS_PER_LEVEL = 12; // 每个关卡的最大物品数量
 const ITEM_DISAPPEAR_DELAY = 1500; // 物品消失延迟，单位ms
 
 // 定义关卡
@@ -90,7 +81,7 @@ const LEVELS: Level[] = [
 ];
 
 // 鼓励的语句 - 改为更幽默、哄人的语句
-const encouragements = [
+const encouragementMessages = [
   "这个气球爆得真好听！",
   "看来心情好一点了吧？",
   "你笑起来真好看！",
@@ -112,15 +103,11 @@ const StressReliefGame: React.FC = () => {
   const [bonusPosition, setBonusPosition] = useState({x: 0, y: 0});  // 奖励动画位置
   const [lastClickTime, setLastClickTime] = useState(0);  // 上次点击时间
   const [isClient, setIsClient] = useState(false); // 客户端渲染标志
-  const [confettiItems, setConfettiItems] = useState<React.ReactNode[]>([]); // 礼花粒子
-  const [audioLoaded, setAudioLoaded] = useState(false); // 音频加载状态
   
-  // 新增缺失的状态变量
+  // 连击UI相关状态
   const [showCombo, setShowCombo] = useState(false); // 显示连击提示
   const [comboPosition, setComboPosition] = useState({ x: 0, y: 0 }); // 连击提示位置
   const [comboText, setComboText] = useState(''); // 连击提示文本
-  const [lastGenTime, setLastGenTime] = useState(0); // 最后生成物品的时间
-  const [gameWon, setGameWon] = useState(false); // 游戏胜利状态
   
   // 关卡相关状态
   const [currentLevel, setCurrentLevel] = useState<Level>(LEVELS[0]);
@@ -128,7 +115,6 @@ const StressReliefGame: React.FC = () => {
   
   // 引用
   const gameAreaRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
   const generationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const comboTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined); // 添加连击超时引用
   
@@ -143,62 +129,16 @@ const StressReliefGame: React.FC = () => {
     
     // 客户端渲染时，初始化AudioContext
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext as typeof AudioContext;
       if (AudioContextClass) {
         console.log("AudioContext支持检测成功");
-        setAudioLoaded(true);
       } else {
         console.warn("当前环境不支持AudioContext，音效将不可用");
-        setAudioLoaded(true); // 也设置为已加载，避免阻塞游戏
       }
     } catch (err) {
       console.error("检测AudioContext失败:", err);
-      setAudioLoaded(true); // 出错时也设置为已加载，避免阻塞游戏
     }
-    
-    return () => {
-      // 清理资源
-    };
   }, [isClient]);
-  
-  // 检查关卡完成
-  useEffect(() => {
-    if (isPlaying && score >= currentLevel.target && !levelComplete) {
-      // 关卡完成
-      setLevelComplete(true);
-      setMessage(`恭喜！你完成了${currentLevel.name}！`);
-      setConfetti(true);
-      playSound('applause');
-      
-      // 暂停物品生成
-      if (generationTimerRef.current) {
-        clearTimeout(generationTimerRef.current);
-        generationTimerRef.current = null;
-      }
-      
-      // 如果不是最后一个关卡，3秒后进入下一关
-      if (currentLevel.id < LEVELS.length) {
-        setTimeout(() => {
-          const nextLevel = LEVELS[currentLevel.id];
-          setCurrentLevel(nextLevel);
-          setLevelComplete(false);
-          setConfetti(false);
-          setItems([]);
-          setScore(0);
-          setMessage(`开始${nextLevel.name}！目标分数: ${nextLevel.target}`);
-          // 短暂延迟后开始生成物品
-          setTimeout(() => {
-            generateItems();
-          }, 1000);
-        }, 3000);
-      } else {
-        // 最后一关完成，游戏胜利
-        setTimeout(() => {
-          endGame(true);
-        }, 3000);
-      }
-    }
-  }, [score, currentLevel, isPlaying, levelComplete]);
   
   // 播放音效的函数
   const playSound = (soundType: string) => {
@@ -361,14 +301,53 @@ const StressReliefGame: React.FC = () => {
         generationTimerRef.current = null;
       }
     };
-  }, [isPlaying, levelComplete]);
+  }, [isPlaying, levelComplete, currentLevel.name]);
   
   // 监听关卡变化
   useEffect(() => {
     if (isPlaying) {
       console.log(`当前关卡: ${currentLevel.name}, 目标分数: ${currentLevel.target}`);
     }
-  }, [currentLevel, isPlaying]);
+  }, [currentLevel, isPlaying, currentLevel.name, currentLevel.target]);
+  
+  // 检查关卡完成
+  useEffect(() => {
+    if (isPlaying && score >= currentLevel.target && !levelComplete) {
+      // 关卡完成
+      setLevelComplete(true);
+      setMessage(`恭喜！你完成了${currentLevel.name}！`);
+      setConfetti(true);
+      playSound('applause');
+      
+      // 暂停物品生成
+      if (generationTimerRef.current) {
+        clearTimeout(generationTimerRef.current);
+        generationTimerRef.current = null;
+      }
+      
+      // 如果不是最后一个关卡，3秒后进入下一关
+      if (currentLevel.id < LEVELS.length) {
+        setTimeout(() => {
+          const nextLevel = LEVELS[currentLevel.id];
+          setCurrentLevel(nextLevel);
+          setLevelComplete(false);
+          setConfetti(false);
+          setItems([]);
+          setScore(0);
+          setMessage(`开始${nextLevel.name}！目标分数: ${nextLevel.target}`);
+          // 短暂延迟后开始生成物品
+          setTimeout(() => {
+            generateItems();
+          }, 1000);
+        }, 3000);
+      } else {
+        // 最后一关完成，游戏胜利
+        setTimeout(() => {
+          endGame(true);
+        }, 3000);
+      }
+    }
+  }, [score, currentLevel, isPlaying, levelComplete]);
   
   // 开始游戏
   const startGame = () => {
@@ -478,7 +457,7 @@ const StressReliefGame: React.FC = () => {
     setLevelComplete(true);
     
     // 提示信息
-    setMessage(encouragements[Math.floor(Math.random() * encouragements.length)]);
+    setMessage(encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)]);
     
     // 如果不是最后一关，则设置下一关
     if (currentLevel.id < LEVELS.length) {
@@ -492,14 +471,11 @@ const StressReliefGame: React.FC = () => {
         setScore(0);
         // 设置新的提示消息
         setMessage(`第 ${currentLevel.id + 1} 关开始！加油！`);
-        // 触发物品生成
-        setLastGenTime(Date.now());
       }, 3000);
     } else {
       // 最后一关通关
       playSound('applause');
       setMessage("恭喜你完成了所有关卡！你太棒了！");
-      setGameWon(true);
     }
   };
   
