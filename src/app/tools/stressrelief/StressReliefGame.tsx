@@ -11,7 +11,6 @@ import {
   FaMusic,
   FaBolt
 } from 'react-icons/fa';
-import ConfettiExplosion from 'react-confetti-explosion';
 
 // 定义游戏中的物品类型
 interface Item {

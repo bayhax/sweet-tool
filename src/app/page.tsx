@@ -25,7 +25,7 @@ const tools = [
   },
   {
     id: 'stressrelief',
-    title: '解压出气包',
+    title: '出气包',
     description: '心情不好？用这个趣味互动小游戏发泄压力，让负面情绪一扫而空',
     icon: <FaAngry className="text-red-500" />,
     color: 'bg-red-100 hover:bg-red-200',
