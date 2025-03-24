@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaHeart, FaSmile, FaMeh, FaSadTear, FaLaughBeam, FaRegPaperPlane } from 'react-icons/fa';
+import { FaMeh, FaSadTear, FaLaughBeam, FaRegPaperPlane } from 'react-icons/fa';
 
 // 定义消息类型接口
 interface Message {
