@@ -8,7 +8,7 @@ import { FaHeart, FaStar, FaCrown, FaGift, FaMusic, FaCommentDots } from 'react-
 interface Message {
   id: number;
   text: string;
-  type: 'text' | 'heart' | 'flower' | 'star' | 'gift';
+  type: 'text' | 'heart' | 'flower' | 'star' | 'gift' | 'music';
   position: {x: number, y: number};
 }
 
@@ -83,7 +83,7 @@ export default function LoveAnimation() {
   };
 
   // 添加互动元素
-  const addInteractionItem = (type: 'text' | 'heart' | 'flower' | 'star' | 'gift' = 'heart', text?: string) => {
+  const addInteractionItem = (type: 'text' | 'heart' | 'flower' | 'star' | 'gift' | 'music' = 'heart', text?: string) => {
     const newMessage: Message = {
       id: Date.now(),
       text: text || interactionResponses[Math.floor(Math.random() * interactionResponses.length)],
@@ -109,7 +109,7 @@ export default function LoveAnimation() {
     const y = e.clientY - rect.top;
     
     // 随机选择一种类型的互动元素
-    const type = itemTypes[Math.floor(Math.random() * itemTypes.length)] as 'heart' | 'flower' | 'star' | 'gift';
+    const type = itemTypes[Math.floor(Math.random() * itemTypes.length)] as 'heart' | 'flower' | 'star' | 'gift' | 'music';
     
     const newMessage: Message = {
       id: Date.now(),
