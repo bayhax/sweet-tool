@@ -22,7 +22,7 @@ export default function Header() {
             哄女友开心
           </Link>
           <Link href="/tools/stressrelief" className="text-gray-700 hover:text-pink-500 transition-colors">
-            解压出气包
+            出气包
           </Link>
           <Link href="/tools/loveanimation" className="text-gray-700 hover:text-pink-500 transition-colors">
             心动瞬间

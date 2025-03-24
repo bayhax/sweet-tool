@@ -35,7 +35,7 @@ const ITEM_DISAPPEAR_DELAY = 1500; // 物品消失延迟，单位ms
 const LEVELS: Level[] = [
   { 
     id: 1, 
-    name: "气球入门", 
+    name: "甜蜜初体验", 
     target: 50, 
     itemCount: 5, 
     spawnSpeed: 1200, 
@@ -44,7 +44,7 @@ const LEVELS: Level[] = [
   },
   { 
     id: 2, 
-    name: "气球进阶", 
+    name: "心动加速", 
     target: 100, 
     itemCount: 7, 
     spawnSpeed: 900, 
@@ -53,7 +53,7 @@ const LEVELS: Level[] = [
   },
   { 
     id: 3, 
-    name: "气球挑战", 
+    name: "浪漫气息", 
     target: 200, 
     itemCount: 8, 
     spawnSpeed: 700, 
@@ -62,7 +62,7 @@ const LEVELS: Level[] = [
   },
   { 
     id: 4, 
-    name: "气球大师", 
+    name: "幸福时光", 
     target: 300, 
     itemCount: 10, 
     spawnSpeed: 600, 
@@ -71,7 +71,7 @@ const LEVELS: Level[] = [
   },
   { 
     id: 5, 
-    name: "气球王者", 
+    name: "甜蜜王者", 
     target: 400, 
     itemCount: 12, 
     spawnSpeed: 500, 
@@ -80,15 +80,18 @@ const LEVELS: Level[] = [
   }
 ];
 
-// 鼓励的语句 - 改为更幽默、哄人的语句
+// 鼓励的语句 - 更甜蜜的版本
 const encouragementMessages = [
-  "这个气球爆得真好听！",
-  "看来心情好一点了吧？",
-  "你笑起来真好看！",
-  "你看，生气的情绪被你赶跑啦！",
-  "再来点击几下，我猜你已经在偷笑了~",
-  "这么厉害，生气的情绪都被你消灭了！",
-  "继续点击，我保证你会笑出来~"
+  "这一刻，你的笑容比阳光还灿烂~",
+  "你每次点击都让我心跳加速呢~",
+  "和你一起玩游戏的时光真幸福~",
+  "你的每一次点击都让我感到心动~",
+  "你真是世界上最可爱的人！",
+  "和你在一起的每一秒都很珍贵~",
+  "你的笑容是这个世界上最美的风景~",
+  "看着你开心的样子，我也变得好开心~",
+  "你简直太厉害了，我好喜欢你哦~",
+  "你知道吗？你玩游戏的样子特别迷人~"
 ];
 
 const StressReliefGame: React.FC = () => {
@@ -315,7 +318,7 @@ const StressReliefGame: React.FC = () => {
     if (isPlaying && score >= currentLevel.target && !levelComplete) {
       // 关卡完成
       setLevelComplete(true);
-      setMessage(`恭喜！你完成了${currentLevel.name}！`);
+      setMessage(`甜心，你太棒了！完成了${currentLevel.name}！`);
       setConfetti(true);
       playSound('applause');
       
@@ -334,7 +337,7 @@ const StressReliefGame: React.FC = () => {
           setConfetti(false);
           setItems([]);
           setScore(0);
-          setMessage(`开始${nextLevel.name}！目标分数: ${nextLevel.target}`);
+          setMessage(`准备体验${nextLevel.name}了哦！继续加油，宝贝！`);
           // 短暂延迟后开始生成物品
           setTimeout(() => {
             generateItems();
@@ -364,9 +367,9 @@ const StressReliefGame: React.FC = () => {
     setIsPlaying(false);
     
     if (victory) {
-      setMessage('恭喜你！已经完成所有关卡！你是出气包大师！');
+      setMessage('我的小甜心！你征服了所有关卡，你是我的甜蜜冠军！💖');
     } else {
-      setMessage('游戏结束！下次再来挑战吧～');
+      setMessage('游戏结束啦~下次再一起玩耍吧，等你哦！');
     }
     
     // 清理物品生成定时器
@@ -470,12 +473,12 @@ const StressReliefGame: React.FC = () => {
         // 重置分数为0
         setScore(0);
         // 设置新的提示消息
-        setMessage(`第 ${currentLevel.id + 1} 关开始！加油！`);
+        setMessage(`亲爱的，${LEVELS[currentLevel.id].name}等着你来体验啦！一起继续甜蜜旅程吧~`);
       }, 3000);
     } else {
       // 最后一关通关
       playSound('applause');
-      setMessage("恭喜你完成了所有关卡！你太棒了！");
+      setMessage("哇！你太棒了！和你一起玩游戏的时光真是甜蜜又幸福~");
     }
   };
   
@@ -702,7 +705,7 @@ const StressReliefGame: React.FC = () => {
     <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 overflow-hidden">
       {/* 头部信息 */}
       <div className="mb-6 text-center">
-        <h2 className="text-2xl font-bold mb-2">出气包 - 气球挑战</h2>
+        <h2 className="text-2xl font-bold mb-2">甜蜜时刻 - 气球奇缘</h2>
         <p className="text-gray-600 min-h-[24px]">{message}</p>
       </div>
       
@@ -802,12 +805,12 @@ const StressReliefGame: React.FC = () => {
               animate={{ scale: 1, opacity: 1 }}
               className="bg-white p-6 rounded-xl shadow-lg text-center"
             >
-              <h3 className="text-2xl font-bold text-pink-600 mb-2">恭喜完成！</h3>
-              <p className="text-gray-700 mb-4">你已成功完成 {currentLevel.name}</p>
+              <h3 className="text-2xl font-bold text-pink-600 mb-2">甜蜜成功，亲爱的！</h3>
+              <p className="text-gray-700 mb-4">亲爱的，你太厉害了，完成了 {currentLevel.name}</p>
               {currentLevel.id < LEVELS.length ? (
-                <p className="text-gray-500">即将进入下一关...</p>
+                <p className="text-gray-500">即将开启更甜蜜的旅程...</p>
               ) : (
-                <p className="text-gray-500">你已完成所有关卡！</p>
+                <p className="text-gray-500">亲爱的，你征服了所有关卡，真棒！💖</p>
               )}
             </motion.div>
           </div>
