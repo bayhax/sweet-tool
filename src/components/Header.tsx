@@ -18,6 +18,12 @@ export default function Header() {
           <Link href="/tools/forgiveness" className="text-gray-700 hover:text-pink-500 transition-colors">
             求原谅
           </Link>
+          <Link href="/tools/makeup" className="text-gray-700 hover:text-pink-500 transition-colors">
+            哄女友开心
+          </Link>
+          <Link href="/tools/stressrelief" className="text-gray-700 hover:text-pink-500 transition-colors">
+            解压出气包
+          </Link>
         </nav>
       </div>
     </header>

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FaHeart, FaRegSadTear } from 'react-icons/fa';
+import { FaHeart, FaRegSadTear, FaAngry } from 'react-icons/fa';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
@@ -14,6 +14,22 @@ const tools = [
     icon: <FaRegSadTear className="text-blue-500" />,
     color: 'bg-blue-100 hover:bg-blue-200',
     link: '/tools/forgiveness'
+  },
+  {
+    id: 'makeup',
+    title: '哄女友开心',
+    description: '女朋友生气了？用这个交互式聊天工具哄她开心，让她心情舒畅',
+    icon: <FaHeart className="text-pink-500" />,
+    color: 'bg-pink-100 hover:bg-pink-200',
+    link: '/tools/makeup'
+  },
+  {
+    id: 'stressrelief',
+    title: '解压出气包',
+    description: '心情不好？用这个趣味互动小游戏发泄压力，让负面情绪一扫而空',
+    icon: <FaAngry className="text-red-500" />,
+    color: 'bg-red-100 hover:bg-red-200',
+    link: '/tools/stressrelief'
   },
   // 未来可以添加更多工具
 ];
