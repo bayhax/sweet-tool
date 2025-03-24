@@ -302,6 +302,22 @@ export default function MakeupGame() {
             </div>
           </div>
         ))}
+        
+        {/* 甜言蜜语选项 */}
+        <div>
+          <h3 className="text-sm font-medium text-gray-700 mb-2">甜言蜜语:</h3>
+          <div className="flex flex-wrap gap-2">
+            {sweetMessages.slice(0, 4).map((message, index) => (
+              <button
+                key={`sweet-${index}`}
+                onClick={() => useSweetMessage(index)}
+                className="text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full hover:bg-purple-200 transition-colors"
+              >
+                {message.length > 10 ? message.substring(0, 10) + '...' : message}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     );
   };
