@@ -24,6 +24,9 @@ export default function Header() {
           <Link href="/tools/stressrelief" className="text-gray-700 hover:text-pink-500 transition-colors">
             解压出气包
           </Link>
+          <Link href="/tools/loveanimation" className="text-gray-700 hover:text-pink-500 transition-colors">
+            心动瞬间
+          </Link>
         </nav>
       </div>
     </header>
