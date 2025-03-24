@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaAngry, 
@@ -11,34 +11,88 @@ import {
   FaMusic,
   FaBolt
 } from 'react-icons/fa';
+import ConfettiExplosion from 'react-confetti-explosion';
 
 // 定义游戏中的物品类型
 interface Item {
-  id: number;
-  type: 'balloon' | 'bubble' | 'plate' | 'pillow' | 'drum';
+  id: string;
+  type: string;
   x: number;
   y: number;
   scale: number;
   rotation: number;
   isBroken: boolean;
+  brokenTime: number;
+  color: string;
+}
+
+// 关卡设置
+interface Level {
+  id: number;
+  name: string;
+  target: number; // 目标分数
+  itemCount: number; // 每次显示物品数量
+  spawnSpeed: number; // 生成速度 (ms)
+  balloonColors: string[]; // 气球可用颜色
+  pointsPerClick: number; // 每次点击获得的分数
 }
 
 // 定义常量
-const MAX_ITEMS = 20; // 最大物品数量
-const STRESS_REDUCTION_PER_CLICK = 5; // 每次点击减少的压力值
+const MAX_ITEMS_PER_LEVEL = 12; // 每个关卡的最大物品数量
+const ITEM_DISAPPEAR_DELAY = 1500; // 物品消失延迟，单位ms
 
-// 解压方式 - 更新图标和名称
-const reliefModes = [
-  { id: 'balloon', name: '气球', icon: <FaBomb className="text-red-500" />, color: 'bg-red-100 hover:bg-red-200' },
-  { id: 'bubble', name: '泡泡', icon: <FaTools className="text-blue-500" />, color: 'bg-blue-100 hover:bg-blue-200' },
-  { id: 'plate', name: '盘子', icon: <FaHandRock className="text-orange-500" />, color: 'bg-orange-100 hover:bg-orange-200' },
-  { id: 'pillow', name: '枕头', icon: <FaBolt className="text-purple-500" />, color: 'bg-purple-100 hover:bg-purple-200' },
-  { id: 'drum', name: '铃铛', icon: <FaMusic className="text-green-500" />, color: 'bg-green-100 hover:bg-green-200' },
+// 定义关卡
+const LEVELS: Level[] = [
+  { 
+    id: 1, 
+    name: "气球入门", 
+    target: 50, 
+    itemCount: 5, 
+    spawnSpeed: 1200, 
+    balloonColors: ['#ffadd1', '#78c2ff', '#ffd280'], 
+    pointsPerClick: 5
+  },
+  { 
+    id: 2, 
+    name: "气球进阶", 
+    target: 100, 
+    itemCount: 7, 
+    spawnSpeed: 900, 
+    balloonColors: ['#ff8ac0', '#62b6ff', '#ffc966', '#7cff94'], 
+    pointsPerClick: 5
+  },
+  { 
+    id: 3, 
+    name: "气球挑战", 
+    target: 200, 
+    itemCount: 8, 
+    spawnSpeed: 700, 
+    balloonColors: ['#ff6baa', '#4aa8ff', '#ffbb4d', '#62ff80', '#c880ff'], 
+    pointsPerClick: 5
+  },
+  { 
+    id: 4, 
+    name: "气球大师", 
+    target: 300, 
+    itemCount: 10, 
+    spawnSpeed: 600, 
+    balloonColors: ['#ff4d93', '#3399ff', '#ffad33', '#4dff6b', '#b366ff', '#ff6b6b'], 
+    pointsPerClick: 10
+  },
+  { 
+    id: 5, 
+    name: "气球王者", 
+    target: 400, 
+    itemCount: 12, 
+    spawnSpeed: 500, 
+    balloonColors: ['#ff3382', '#1a88ff', '#ff9f1a', '#33ff57', '#a64dff', '#ff5252', '#26c9ff'], 
+    pointsPerClick: 10
+  }
 ];
 
 // 鼓励的语句 - 改为更幽默、哄人的语句
 const encouragements = [
-  "这个泡泡爆得真好听！",
+  "这个气球爆得真好听！",
   "看来心情好一点了吧？",
   "你笑起来真好看！",
   "你看，生气的情绪被你赶跑啦！",
@@ -47,15 +101,13 @@ const encouragements = [
   "继续点击，我保证你会笑出来~"
 ];
 
-export default function StressReliefGame() {
+const StressReliefGame: React.FC = () => {
   // 游戏状态
   const [items, setItems] = useState<Item[]>([]);
   const [score, setScore] = useState(0);
-  const [currentMode, setCurrentMode] = useState<string>('balloon');
   const [message, setMessage] = useState<string>('点击开始，赶走不开心的情绪！');
   const [isPlaying, setIsPlaying] = useState(false);
   const [confetti, setConfetti] = useState(false);
-  const [stressLevel, setStressLevel] = useState(100);
   const [combo, setCombo] = useState(0);  // 连击次数
   const [showBonus, setShowBonus] = useState(false);  // 显示奖励动画
   const [bonusPosition, setBonusPosition] = useState({x: 0, y: 0});  // 奖励动画位置
@@ -64,10 +116,22 @@ export default function StressReliefGame() {
   const [confettiItems, setConfettiItems] = useState<React.ReactNode[]>([]); // 礼花粒子
   const [audioLoaded, setAudioLoaded] = useState(false); // 音频加载状态
   
+  // 新增缺失的状态变量
+  const [showCombo, setShowCombo] = useState(false); // 显示连击提示
+  const [comboPosition, setComboPosition] = useState({ x: 0, y: 0 }); // 连击提示位置
+  const [comboText, setComboText] = useState(''); // 连击提示文本
+  const [lastGenTime, setLastGenTime] = useState(0); // 最后生成物品的时间
+  const [gameWon, setGameWon] = useState(false); // 游戏胜利状态
+  
+  // 关卡相关状态
+  const [currentLevel, setCurrentLevel] = useState<Level>(LEVELS[0]);
+  const [levelComplete, setLevelComplete] = useState(false);
+  
   // 引用
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const comboTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined); // 添加连击超时引用
   
   // 检测是否客户端渲染
   useEffect(() => {
@@ -98,63 +162,65 @@ export default function StressReliefGame() {
     };
   }, [isClient]);
   
-  // 移除外部音效依赖，使用简单的音效函数
-  function playInlineSound(type: string) {
-    if (!isClient) return;
+  // 检查关卡完成
+  useEffect(() => {
+    if (isPlaying && score >= currentLevel.target && !levelComplete) {
+      // 关卡完成
+      setLevelComplete(true);
+      setMessage(`恭喜！你完成了${currentLevel.name}！`);
+      setConfetti(true);
+      playSound('applause');
+      
+      // 暂停物品生成
+      if (generationTimerRef.current) {
+        clearTimeout(generationTimerRef.current);
+        generationTimerRef.current = null;
+      }
+      
+      // 如果不是最后一个关卡，3秒后进入下一关
+      if (currentLevel.id < LEVELS.length) {
+        setTimeout(() => {
+          const nextLevel = LEVELS[currentLevel.id];
+          setCurrentLevel(nextLevel);
+          setLevelComplete(false);
+          setConfetti(false);
+          setItems([]);
+          setScore(0);
+          setMessage(`开始${nextLevel.name}！目标分数: ${nextLevel.target}`);
+          // 短暂延迟后开始生成物品
+          setTimeout(() => {
+            generateItems();
+          }, 1000);
+        }, 3000);
+      } else {
+        // 最后一关完成，游戏胜利
+        setTimeout(() => {
+          endGame(true);
+        }, 3000);
+      }
+    }
+  }, [score, currentLevel, isPlaying, levelComplete]);
+  
+  // 播放音效的函数
+  const playSound = (soundType: string) => {
+    if (!isClient) {
+      console.log(`跳过播放音效 ${soundType}: 客户端未就绪`);
+      return;
+    }
     
-    // 使用AudioContext API创建简单的音效
+    // 实现简单的内联音效
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
       // 根据不同类型设置不同的音效参数
-      switch(type) {
+      switch(soundType) {
         case 'balloon':
           oscillator.type = 'sine';
           oscillator.frequency.value = 400;
           gainNode.gain.value = 0.1;
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.3);
-          break;
-        case 'bubble':
-          oscillator.type = 'sine';
-          oscillator.frequency.value = 300;
-          gainNode.gain.value = 0.1;
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.2);
-          break;
-        case 'plate':
-          oscillator.type = 'square';
-          oscillator.frequency.value = 200;
-          gainNode.gain.value = 0.2;
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.4);
-          break;
-        case 'pillow':
-          oscillator.type = 'triangle';
-          oscillator.frequency.value = 150;
-          gainNode.gain.value = 0.1;
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.3);
-          break;
-        case 'drum':
-          oscillator.type = 'sawtooth';
-          oscillator.frequency.value = 250;
-          gainNode.gain.value = 0.15;
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
           oscillator.connect(gainNode);
           gainNode.connect(audioContext.destination);
           oscillator.start();
@@ -177,39 +243,114 @@ export default function StressReliefGame() {
             }, i * 80);
           }
           break;
+        case 'levelup':
+          // 关卡提升音效
+          for(let i = 0; i < 3; i++) {
+            setTimeout(() => {
+              const tempOsc = audioContext.createOscillator();
+              const tempGain = audioContext.createGain();
+              tempOsc.type = 'sine';
+              tempOsc.frequency.value = 300 + (i * 100);
+              tempGain.gain.value = 0.1;
+              tempGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+              tempOsc.connect(tempGain);
+              tempGain.connect(audioContext.destination);
+              tempOsc.start();
+              tempOsc.stop(audioContext.currentTime + 0.2);
+            }, i * 150);
+          }
+          break;
         default:
-          console.warn(`未知的音效类型: ${type}`);
-          return false;
+          console.warn(`未知的音效类型: ${soundType}`);
       }
       
-      console.log(`播放内联音效: ${type}`);
-      return true;
+      console.log(`播放内联音效: ${soundType}`);
     } catch(err) {
       console.error('无法播放内联音效:', err);
-      return false;
     }
-  }
+  };
   
-  // 播放音效的函数
-  const playSound = (soundType: string) => {
-    if (!isClient) {
-      console.log(`跳过播放音效 ${soundType}: 客户端未就绪`);
-      return;
+  // 创建单个新物品的辅助函数
+  const generateNewItem = () => {
+    if (!isPlaying || !gameAreaRef.current || levelComplete) return null;
+    
+    const gameArea = gameAreaRef.current.getBoundingClientRect();
+    
+    // 增加安全边距，确保气球完全在可视区域内
+    const safeMargin = 80;
+    const maxItemSize = 100; // 增加最大物品尺寸估计值，确保足够大
+    
+    // 计算安全区域的宽度和高度
+    const safeWidth = Math.max(50, gameArea.width - safeMargin * 2 - maxItemSize);
+    const safeHeight = Math.max(50, gameArea.height - safeMargin * 2 - maxItemSize);
+    
+    // 计算安全区域内的随机位置
+    const x = safeMargin + Math.random() * safeWidth;
+    const y = safeMargin + Math.random() * safeHeight;
+    
+    // 控制大小范围，减小最大缩放以避免过大物品
+    const scale = 0.6 + Math.random() * 0.3; // 缩小最大比例
+    
+    // 随机选择当前关卡可用的气球颜色
+    const colorIndex = Math.floor(Math.random() * currentLevel.balloonColors.length);
+    const balloonColor = currentLevel.balloonColors[colorIndex];
+    
+    // 创建新物品，确保ID唯一
+    const newItem: Item = {
+      id: `balloon-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      x,
+      y,
+      scale,
+      type: 'balloon',
+      isBroken: false,
+      rotation: Math.random() * 360,
+      brokenTime: 0,
+      color: balloonColor
+    };
+    
+    console.log(`生成新气球: 颜色=${balloonColor}, 位置=(${x.toFixed(0)}, ${y.toFixed(0)})`);
+    
+    return newItem;
+  };
+  
+  // 生成物品
+  const generateItems = () => {
+    if (!isPlaying || !gameAreaRef.current || levelComplete) return;
+    
+    // 如果物品数量未达到关卡限制，生成新物品
+    if (items.length < currentLevel.itemCount) {
+      const newItem = generateNewItem();
+      if (newItem) {
+        setItems(prevItems => [...prevItems, newItem]);
+      }
     }
     
-    // 使用内联音效替代外部音效
-    playInlineSound(soundType);
+    // 设置下一次生成的时间间隔
+    const nextItemDelay = items.length < currentLevel.itemCount ? 
+                          // 使用关卡指定的生成速度
+                          currentLevel.spawnSpeed : 
+                          // 在达到上限时，等待更长时间再次尝试
+                          currentLevel.spawnSpeed * 2;
+    
+    // 清除之前的定时器，设置新的定时器
+    if (generationTimerRef.current) {
+      clearTimeout(generationTimerRef.current);
+    }
+    generationTimerRef.current = setTimeout(generateItems, nextItemDelay);
   };
   
   // 自动生成物品的效果
   useEffect(() => {
+    console.log(`游戏状态变更: ${isPlaying ? '进行中' : '停止'}`);
+    
     // 清理定时器
     if (generationTimerRef.current) {
       clearTimeout(generationTimerRef.current);
       generationTimerRef.current = null;
     }
     
-    if (isPlaying) {
+    if (isPlaying && !levelComplete) {
+      console.log(`启动物品生成，关卡: ${currentLevel.name}`);
       // 确保只有在游戏中才生成物品
       generateItems();
     }
@@ -221,239 +362,196 @@ export default function StressReliefGame() {
         generationTimerRef.current = null;
       }
     };
-  }, [isPlaying]); // 仅依赖于游戏状态，不依赖于当前模式
+  }, [isPlaying, levelComplete]);
   
-  // 切换模式时更新物品
+  // 监听关卡变化
   useEffect(() => {
     if (isPlaying) {
-      // 将所有物品标记为已破坏
-      setItems(prevItems => prevItems.map(item => ({...item, isBroken: true})));
-      
-      // 等待动画完成后清空物品并生成新物品
-      const timer = setTimeout(() => {
-        setItems([]);
-        const genTimer = setTimeout(() => {
-          generateItems();
-        }, 300);
-        
-        return () => clearTimeout(genTimer);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
+      console.log(`当前关卡: ${currentLevel.name}, 目标分数: ${currentLevel.target}`);
     }
-  }, [currentMode]);
+  }, [currentLevel, isPlaying]);
   
   // 开始游戏
   const startGame = () => {
     setIsPlaying(true);
     setItems([]);
     setScore(0);
-    setStressLevel(100);
-    setMessage('点击开始，赶走不开心的情绪！');
-  };
-  
-  // 生成物品
-  const generateItems = () => {
-    if (!isPlaying || !gameAreaRef.current) return;
-    
-    // 检查物品数量是否达到上限
-    if (items.length >= MAX_ITEMS) {
-      console.log(`物品数量已达上限 (${MAX_ITEMS})，停止生成`);
-      return;
-    }
-    
-    const gameArea = gameAreaRef.current.getBoundingClientRect();
-    
-    // 计算安全边距 - 避免物品生成在边缘
-    const safeMargin = 100;
-    
-    // 计算安全区域的宽度和高度
-    const safeWidth = gameArea.width - safeMargin * 2;
-    const safeHeight = gameArea.height - safeMargin * 2;
-    
-    // 确保安全区域为正数
-    if (safeWidth <= 0 || safeHeight <= 0) return;
-    
-    // 计算安全区域内的随机位置
-    const x = safeMargin + Math.random() * safeWidth;
-    const y = safeMargin + Math.random() * safeHeight;
-    
-    // 随机大小但不要太大
-    const scale = 0.7 + Math.random() * 0.6;
-    
-    // 创建新物品，确保ID唯一
-    const newItem: Item = {
-      id: Date.now() + Math.floor(Math.random() * 10000),
-      x,
-      y,
-      scale,
-      type: currentMode as 'balloon' | 'bubble' | 'plate' | 'pillow' | 'drum',
-      isBroken: false,
-      rotation: Math.random() * 360
-    };
-    
-    setItems(prevItems => [...prevItems, newItem]);
-    
-    // 随机决定下一个物品生成的时间间隔 (1-3秒)
-    const nextItemDelay = 1000 + Math.random() * 2000;
-    
-    generationTimerRef.current = setTimeout(generateItems, nextItemDelay);
-  };
-  
-  // 切换模式
-  const changeMode = (mode: string) => {
-    if (currentMode === mode) return;
-    setCurrentMode(mode);
+    setCurrentLevel(LEVELS[0]); // 重置为第一关
+    setLevelComplete(false);
+    setMessage(`开始${LEVELS[0].name}！目标分数: ${LEVELS[0].target}`);
   };
   
   // 结束游戏
-  const endGame = () => {
+  const endGame = (victory: boolean = false) => {
     setIsPlaying(false);
-    setMessage('你已经完全开心起来啦！记得下次心情不好也可以来玩～');
+    
+    if (victory) {
+      setMessage('恭喜你！已经完成所有关卡！你是出气包大师！');
+    } else {
+      setMessage('游戏结束！下次再来挑战吧～');
+    }
+    
+    // 清理物品生成定时器
+    if (generationTimerRef.current) {
+      clearTimeout(generationTimerRef.current);
+      generationTimerRef.current = null;
+    }
     
     // 5秒后自动重置游戏状态，准备下一轮
     setTimeout(() => {
       setConfetti(false);
       setItems([]);
       setScore(0);
-      setStressLevel(100);
     }, 5000);
   };
   
-  // 点击物品时的处理
+  // 事件处理函数
   const handleItemClick = (item: Item) => {
-    if (!isClient) return; // 确保只在客户端执行
+    // 播放声音
+    playSound('balloon');
     
-    // 播放音效
-    playSound(item.type);
+    const now = Date.now();
+    const timeDiff = now - lastClickTime;
+    let pointsEarned = currentLevel.pointsPerClick;
+    let isComboClick = false;
     
-    // 减少压力值
-    setStressLevel(prev => {
-      const newLevel = Math.max(0, prev - STRESS_REDUCTION_PER_CLICK);
-      
-      // 检查游戏是否结束
-      if (newLevel === 0) {
-        setMessage('恭喜你！已经彻底释放了压力！');
-        setConfetti(true);
-        playSound('applause');
-        
-        // 3秒后结束游戏
-        setTimeout(() => {
-          endGame();
-        }, 3000);
+    // 检查是否触发连击（0.8秒内）
+    if (timeDiff < 800 && combo >= 0) {
+      setCombo(prev => prev + 1);
+      if (combo >= 2) {
+        pointsEarned = currentLevel.pointsPerClick * 2;
+        setShowBonus(true);
+        setBonusPosition({ x: item.x, y: item.y });
+        setTimeout(() => setShowBonus(false), 800);
       }
-      
-      return newLevel;
+      isComboClick = true;
+    } else {
+      setCombo(0);
+    }
+    
+    // 更新最后点击时间
+    setLastClickTime(now);
+    
+    // 更新分数
+    setScore(prev => {
+      const newScore = prev + pointsEarned;
+      // 检查是否达成关卡目标
+      if (!levelComplete && newScore >= currentLevel.target) {
+        handleLevelComplete();
+      }
+      return newScore;
     });
+    
+    // 显示连击提示
+    if (isComboClick && combo >= 2) {
+      setShowCombo(true);
+      setComboPosition({ x: item.x, y: item.y - 30 });
+      setComboText(`${combo} 连击!`);
+      
+      clearTimeout(comboTimeoutRef.current);
+      comboTimeoutRef.current = setTimeout(() => {
+        setShowCombo(false);
+        setCombo(0);
+      }, 1000);
+    }
     
     // 标记物品为已破坏
     setItems(prevItems => 
       prevItems.map(i => 
-        i.id === item.id ? { ...i, isBroken: true } : i
+        i.id === item.id 
+          ? { ...i, isBroken: true } 
+          : i
       )
     );
     
-    // 增加分数 - 根据连击增加分数
-    const baseScore = 10;
-    const comboMultiplier = Math.min(combo, 5); // 最高5倍
-    const finalScore = baseScore * (comboMultiplier || 1);
-    
-    setScore(prev => prev + finalScore);
-    
-    // 随机显示鼓励消息
-    if (Math.random() > 0.7) {
-      const randomIndex = Math.floor(Math.random() * encouragements.length);
-      setMessage(encouragements[randomIndex]);
-    }
-    
-    // 两秒后删除已破坏的物品
+    // 移除物品
     setTimeout(() => {
       setItems(prevItems => prevItems.filter(i => i.id !== item.id));
-    }, 2000);
+    }, ITEM_DISAPPEAR_DELAY);
+  };
+  
+  // 处理关卡完成
+  const handleLevelComplete = () => {
+    // 播放音效
+    playSound('levelup');
+    
+    // 设置关卡完成状态
+    setLevelComplete(true);
+    
+    // 提示信息
+    setMessage(encouragements[Math.floor(Math.random() * encouragements.length)]);
+    
+    // 如果不是最后一关，则设置下一关
+    if (currentLevel.id < LEVELS.length) {
+      setTimeout(() => {
+        // 进入下一关
+        setCurrentLevel(LEVELS[currentLevel.id]);
+        setLevelComplete(false);
+        // 重置游戏物品
+        setItems([]);
+        // 重置分数为0
+        setScore(0);
+        // 设置新的提示消息
+        setMessage(`第 ${currentLevel.id + 1} 关开始！加油！`);
+        // 触发物品生成
+        setLastGenTime(Date.now());
+      }, 3000);
+    } else {
+      // 最后一关通关
+      playSound('applause');
+      setMessage("恭喜你完成了所有关卡！你太棒了！");
+      setGameWon(true);
+    }
   };
   
   // 重新开始游戏
   const restartGame = () => {
-    setIsPlaying(false);
-    setConfetti(false);
-    setMessage('准备好赶走不开心了吗？');
+    setItems(prevItems => prevItems.map(item => ({ ...item, isBroken: true })));
     setTimeout(() => {
+      setItems([]);
       startGame();
     }, 500);
   };
   
   // 获取物品样式
   const getItemStyle = (item: Item) => {
-    switch(item.type) {
-      case 'balloon':
-        return {
-          width: `${50 * item.scale}px`,
-          height: `${70 * item.scale}px`,
-          borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
-          background: !item.isBroken ? 'radial-gradient(circle at 30% 30%, #ff9ff3, #f368e0)' : 'transparent',
-          position: 'absolute' as const,
-          left: `${item.x}px`,
-          top: `${item.y}px`,
-          transform: `rotate(${item.rotation}deg)`,
-          cursor: 'pointer',
-          boxShadow: !item.isBroken ? '0 4px 6px rgba(0, 0, 0, 0.1)' : 'none',
-        };
-      case 'bubble':
-        return {
-          width: `${60 * item.scale}px`,
-          height: `${60 * item.scale}px`,
-          borderRadius: '50%',
-          background: !item.isBroken ? 'radial-gradient(circle at 30% 30%, rgba(214, 248, 255, 0.9), rgba(190, 231, 253, 0.7))' : 'transparent',
-          border: !item.isBroken ? '2px solid rgba(255, 255, 255, 0.7)' : 'none',
-          position: 'absolute' as const,
-          left: `${item.x}px`,
-          top: `${item.y}px`,
-          boxShadow: !item.isBroken ? '0 0 15px rgba(255, 255, 255, 0.7), inset 0 0 20px rgba(255, 255, 255, 0.5)' : 'none',
-          cursor: 'pointer'
-        };
-      case 'plate':
-        return {
-          width: `${80 * item.scale}px`,
-          height: `${20 * item.scale}px`,
-          borderRadius: '50%',
-          background: !item.isBroken ? 'linear-gradient(135deg, #fdcb6e, #e17055)' : 'transparent',
-          border: !item.isBroken ? '1px solid #ff7675' : 'none',
-          position: 'absolute' as const,
-          left: `${item.x}px`,
-          top: `${item.y}px`,
-          transform: `rotate(${item.rotation}deg)`,
-          boxShadow: !item.isBroken ? '0 4px 8px rgba(0, 0, 0, 0.2)' : 'none',
-          cursor: 'pointer'
-        };
-      case 'pillow':
-        return {
-          width: `${80 * item.scale}px`,
-          height: `${50 * item.scale}px`,
-          borderRadius: '10px',
-          background: !item.isBroken ? 'linear-gradient(135deg, #a29bfe, #6c5ce7)' : 'transparent',
-          position: 'absolute' as const,
-          left: `${item.x}px`,
-          top: `${item.y}px`,
-          transform: `rotate(${item.rotation}deg)`,
-          boxShadow: !item.isBroken ? '0 4px 8px rgba(0, 0, 0, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.3)' : 'none',
-          cursor: 'pointer'
-        };
-      case 'drum':
-        return {
-          width: `${60 * item.scale}px`,
-          height: `${60 * item.scale}px`,
-          borderRadius: '50%',
-          background: !item.isBroken ? 'radial-gradient(circle at 30% 30%, #ffeaa7, #fdcb6e)' : 'transparent',
-          border: !item.isBroken ? '3px solid #f9ca24' : 'none',
-          position: 'absolute' as const,
-          left: `${item.x}px`,
-          top: `${item.y}px`,
-          transform: `rotate(${item.rotation}deg)`,
-          boxShadow: !item.isBroken ? '0 4px 8px rgba(0, 0, 0, 0.15)' : 'none',
-          cursor: 'pointer'
-        };
-      default:
-        return {};
+    // 只处理气球类型
+    return {
+      width: `${50 * item.scale}px`,
+      height: `${70 * item.scale}px`,
+      borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
+      background: !item.isBroken ? 
+        `radial-gradient(circle at 30% 30%, ${item.color}, ${adjustColor(item.color, -30)})` : 
+        'transparent',
+      position: 'absolute' as const,
+      left: `${item.x}px`,
+      top: `${item.y}px`,
+      transform: `rotate(${item.rotation}deg)`,
+      cursor: 'pointer',
+      boxShadow: !item.isBroken ? '0 4px 6px rgba(0, 0, 0, 0.1)' : 'none',
+    };
+  };
+  
+  // 辅助函数：调整颜色亮度
+  const adjustColor = (color: string, amount: number): string => {
+    // 简单的颜色调整函数，将会使颜色更暗或更亮
+    try {
+      if (color.startsWith('#')) {
+        // 十六进制颜色
+        const hex = color.substring(1);
+        const num = parseInt(hex, 16);
+        let r = (num >> 16) + amount;
+        let g = ((num >> 8) & 0x00FF) + amount;
+        let b = (num & 0x0000FF) + amount;
+        r = Math.min(Math.max(0, r), 255);
+        g = Math.min(Math.max(0, g), 255);
+        b = Math.min(Math.max(0, b), 255);
+        return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+      }
+      return color;
+    } catch (e) {
+      console.error('调整颜色时出错:', e);
+      return color;
     }
   };
 
@@ -461,303 +559,86 @@ export default function StressReliefGame() {
   const renderBrokenEffect = (item: Item) => {
     if (!item.isBroken || !isClient) return null;
     
-    switch(item.type) {
-      case 'balloon':
-        return (
-          <div className="balloon-pieces">
-            {[...Array(12)].map((_, i) => (
-              <motion.div
-                key={`piece-${item.id}-${i}`}
-                initial={{ x: 0, y: 0, opacity: 1 }}
-                animate={{ 
-                  x: (Math.random() - 0.5) * 120, 
-                  y: Math.random() * 120,
-                  opacity: 0,
-                  scale: Math.random() * 0.5 + 0.5 
-                }}
-                transition={{ duration: 1.2, ease: "easeOut" }}
-                style={{
-                  position: 'absolute',
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: i % 2 === 0 ? '#ff9ff3' : '#f368e0',
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-              />
-            ))}
-            <motion.div
-              initial={{ scale: 1, opacity: 1 }}
-              animate={{ scale: 2, opacity: 0 }}
-              transition={{ duration: 0.5 }}
-              style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                background: 'rgba(255, 159, 243, 0.2)',
-                left: 0,
-                top: 0
-              }}
-            />
-          </div>
-        );
-      case 'bubble':
-        return (
+    // 只渲染气球爆炸效果
+    return (
+      <div className="balloon-pieces">
+        {[...Array(12)].map((_, i) => (
           <motion.div
-            initial={{ scale: 1, opacity: 1 }}
-            animate={{ scale: 1.8, opacity: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
+            key={`piece-${item.id}-${i}`}
+            initial={{ x: 0, y: 0, opacity: 1 }}
+            animate={{ 
+              x: (Math.random() - 0.5) * 120, 
+              y: Math.random() * 120,
+              opacity: 0,
+              scale: Math.random() * 0.5 + 0.5 
+            }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
             style={{
               position: 'absolute',
-              width: '100%',
-              height: '100%',
+              width: '10px',
+              height: '10px',
               borderRadius: '50%',
-              border: '2px solid rgba(214, 248, 255, 0.5)',
-              background: 'rgba(214, 248, 255, 0.2)',
-              left: 0,
-              top: 0,
-              boxShadow: '0 0 10px rgba(214, 248, 255, 0.5)'
+              background: i % 2 === 0 ? item.color : adjustColor(item.color, -30),
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
             }}
           />
-        );
-      case 'plate':
-        return (
-          <div className="plate-pieces">
-            {[...Array(8)].map((_, i) => (
-              <motion.div
-                key={`piece-${item.id}-${i}`}
-                initial={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
-                animate={{ 
-                  x: (Math.random() - 0.5) * 150, 
-                  y: Math.random() * 150 - 50,
-                  rotate: Math.random() * 360,
-                  opacity: 0 
-                }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-                style={{
-                  position: 'absolute',
-                  width: `${(Math.random() * 20) + 10}px`,
-                  height: `${(Math.random() * 10) + 5}px`,
-                  background: i % 2 === 0 ? '#fdcb6e' : '#e17055',
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
-                }}
-              />
-            ))}
-          </div>
-        );
-      case 'pillow':
-        return (
-          <div className="pillow-pieces">
-            {[...Array(15)].map((_, i) => (
-              <motion.div
-                key={`piece-${item.id}-${i}`}
-                initial={{ x: 0, y: 0, scale: 0, opacity: 1, rotate: 0 }}
-                animate={{ 
-                  x: (Math.random() - 0.5) * 100, 
-                  y: (Math.random() - 0.5) * 100,
-                  scale: Math.random() * 0.8 + 0.2,
-                  rotate: Math.random() * 180,
-                  opacity: 0 
-                }}
-                transition={{ duration: 1.8, ease: "easeOut" }}
-                style={{
-                  position: 'absolute',
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: i % 3 === 0 ? '#a29bfe' : (i % 3 === 1 ? '#6c5ce7' : 'white'),
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)'
-                }}
-              />
-            ))}
-            <motion.div
-              initial={{ scale: 1, opacity: 0.5 }}
-              animate={{ scale: 1.5, opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                borderRadius: '10px',
-                background: 'rgba(162, 155, 254, 0.2)',
-                left: 0,
-                top: 0
-              }}
-            />
-          </div>
-        );
-      case 'drum':
-        return (
-          <>
-            <motion.div
-              initial={{ scale: 1, opacity: 1 }}
-              animate={{ scale: 1.5, opacity: 0 }}
-              transition={{ duration: 0.7 }}
-              style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                border: '2px solid #f9ca24',
-                background: 'rgba(253, 203, 110, 0.3)',
-                left: 0,
-                top: 0
-              }}
-            />
-            <motion.div
-              initial={{ scale: 0.8, opacity: 1 }}
-              animate={{ scale: 2, opacity: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              style={{
-                position: 'absolute',
-                width: '50%',
-                height: '50%',
-                borderRadius: '50%',
-                background: 'rgba(255, 234, 167, 0.7)',
-                left: '25%',
-                top: '25%'
-              }}
-            />
-            {[...Array(8)].map((_, i) => (
-              <motion.div
-                key={`spark-${item.id}-${i}`}
-                initial={{ x: 0, y: 0, opacity: 1, scale: 0.5 }}
-                animate={{ 
-                  x: Math.cos(i * Math.PI / 4) * 80,
-                  y: Math.sin(i * Math.PI / 4) * 80,
-                  opacity: 0,
-                  scale: 0 
-                }}
-                transition={{ duration: 0.8 }}
-                style={{
-                  position: 'absolute',
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: '#f9ca24',
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  boxShadow: '0 0 5px #ffeaa7'
-                }}
-              />
-            ))}
-          </>
-        );
-      default:
-        return null;
+        ))}
+        <motion.div
+          initial={{ scale: 1, opacity: 1 }}
+          animate={{ scale: 2, opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            background: `rgba(${hexToRgb(item.color)}, 0.2)`,
+            left: 0,
+            top: 0
+          }}
+        />
+      </div>
+    );
+  };
+  
+  // 辅助函数：十六进制颜色转RGB
+  const hexToRgb = (hex: string): string => {
+    try {
+      // 移除#前缀如果存在
+      hex = hex.replace('#', '');
+      
+      // 解析十六进制颜色
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      
+      return `${r}, ${g}, ${b}`;
+    } catch (e) {
+      console.error('转换颜色时出错:', e);
+      return '255, 159, 243'; // 返回默认粉色
     }
   };
 
-  // 渲染模式选择按钮
-  const renderModesSelection = () => {
+  // 渲染关卡信息
+  const renderLevelInfo = () => {
     return (
-      <div className="flex flex-wrap gap-2 mb-6 justify-center">
-        {reliefModes.map((mode) => (
-          <button
-            key={mode.id}
-            onClick={() => changeMode(mode.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
-              currentMode === mode.id 
-                ? 'bg-gray-800 text-white' 
-                : `${mode.color} text-gray-800`
-            }`}
-          >
-            {mode.icon}
-            <span>{mode.name}</span>
-          </button>
-        ))}
+      <div className="mb-4 flex items-center justify-center gap-4">
+        <div className="bg-gray-100 px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+          <span className="font-bold">关卡:</span>
+          <span className="text-pink-600">{currentLevel.name}</span>
+        </div>
+        <div className="bg-gray-100 px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+          <span className="font-bold">目标:</span>
+          <span className="text-pink-600">{currentLevel.target}</span>
+        </div>
       </div>
     );
   };
 
-  // 礼花效果
-  useEffect(() => {
-    if (!confetti || !isClient) {
-      setConfettiItems([]);
-      return;
-    }
-    
-    // 客户端代码，生成礼花粒子
-    const items = [...Array(80)].map((_, i) => {
-      const size = Math.random() * 10 + 5;
-      const colors = ['#ff9ff3', '#a29bfe', '#55efc4', '#ffeaa7', '#74b9ff', '#fd79a8', '#fdcb6e'];
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      const shapes = ['circle', 'square', 'triangle'];
-      const shape = shapes[Math.floor(Math.random() * shapes.length)];
-      
-      let style: React.CSSProperties = {
-        position: 'fixed',
-        width: `${size}px`,
-        height: `${size}px`,
-        backgroundColor: color,
-        zIndex: 50
-      };
-      
-      if (shape === 'circle') {
-        style.borderRadius = '50%';
-      } else if (shape === 'triangle') {
-        style.width = '0';
-        style.height = '0';
-        style.backgroundColor = 'transparent';
-        style.borderLeft = `${size/2}px solid transparent`;
-        style.borderRight = `${size/2}px solid transparent`;
-        style.borderBottom = `${size}px solid ${color}`;
-      }
-      
-      const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 500;
-      const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 700;
-      
-      const startX = Math.random() * windowWidth;
-      const randomOffsetX = (Math.random() - 0.5) * 200;
-      const randomDuration = Math.random() * 4 + 2;
-      const randomDelay = Math.random() * 5;
-      const randomRotate = Math.random() * 360 * (Math.random() > 0.5 ? 1 : -1);
-      
-      return (
-        <motion.div
-          key={`confetti-${i}`}
-          initial={{
-            x: startX,
-            y: -20,
-            opacity: 1,
-            rotate: 0
-          }}
-          animate={{
-            y: windowHeight + 20,
-            rotate: randomRotate,
-            x: startX + randomOffsetX
-          }}
-          transition={{
-            duration: randomDuration,
-            ease: "easeOut",
-            repeat: Infinity,
-            delay: randomDelay
-          }}
-          style={style}
-        />
-      );
-    });
-    
-    setConfettiItems(items);
-  }, [confetti, isClient]);
-  
-  // 渲染礼花效果 - 现在只是返回已经生成的礼花粒子
-  const renderConfetti = () => {
-    if (!confetti || !isClient) return null;
-    return <div className="confetti-container">{confettiItems}</div>;
-  };
-
-  // 渲染奖励动画
+  // 奖励动画
   const renderBonus = () => {
     if (!showBonus) return null;
     
@@ -777,47 +658,77 @@ export default function StressReliefGame() {
           textShadow: '0 0 5px rgba(0,0,0,0.5)'
         }}
       >
-        +30 连击奖励!
+        +{currentLevel.pointsPerClick * 2} 连击奖励!
       </motion.div>
     );
   };
 
   // 渲染连击提示
   const renderCombo = () => {
-    if (combo < 2 || !isPlaying) return null;
+    if (!showCombo) return null;
     
     return (
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
+        initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.8, opacity: 0 }}
-        className="absolute top-4 right-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1 rounded-full shadow-md"
+        exit={{ scale: 1.5, opacity: 0 }}
+        transition={{ duration: 0.5 }}
+        style={{
+          position: 'absolute',
+          left: `${comboPosition.x}px`,
+          top: `${comboPosition.y}px`,
+          color: '#ff4081',
+          fontWeight: 'bold',
+          zIndex: 100,
+          textShadow: '0 0 3px rgba(255,255,255,0.8)'
+        }}
       >
-        {combo}连击!
+        {comboText}
       </motion.div>
     );
   };
 
-  // 主要渲染
+  // 渲染礼花效果
+  const renderConfetti = () => {
+    if (!confetti || !isClient) return null;
+    
+    // 创建简单的礼花效果
+    const confettiElements = [];
+    for (let i = 0; i < 100; i++) {
+      const size = Math.random() * 10 + 5;
+      confettiElements.push(
+        <div
+          key={`confetti-${i}`}
+          style={{
+            position: 'absolute',
+            width: `${size}px`,
+            height: `${size}px`,
+            borderRadius: '50%',
+            background: `#${Math.floor(Math.random()*16777215).toString(16)}`,
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            transform: `scale(${Math.random() + 0.5})`,
+            opacity: Math.random(),
+            animation: `fall-${i} ${Math.random() * 2 + 1}s linear forwards`
+          }}
+        />
+      );
+    }
+    
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+        {confettiElements}
+      </div>
+    );
+  };
+
+  // 渲染游戏物品
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 overflow-hidden">
       {/* 头部信息 */}
       <div className="mb-6 text-center">
-        <h2 className="text-2xl font-bold mb-2">
-          {isPlaying ? (
-            <div className="flex items-center justify-center gap-2">
-              <span>情绪值:</span>
-              <div className="w-40 h-4 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-red-500 to-yellow-500 transition-all duration-500"
-                  style={{ width: `${stressLevel}%` }}
-                ></div>
-              </div>
-              <span className="ml-2">{stressLevel}%</span>
-            </div>
-          ) : "出气包"}
-        </h2>
-        <p className="text-gray-600">{message}</p>
+        <h2 className="text-2xl font-bold mb-2">出气包 - 气球挑战</h2>
+        <p className="text-gray-600 min-h-[24px]">{message}</p>
       </div>
       
       {/* 游戏控制 */}
@@ -828,7 +739,7 @@ export default function StressReliefGame() {
             className="px-6 py-3 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors shadow-md flex items-center gap-2"
           >
             <FaSmile className="text-yellow-300" />
-            <span>开始互动</span>
+            <span>开始游戏</span>
           </button>
         ) : (
           <button
@@ -840,8 +751,8 @@ export default function StressReliefGame() {
         )}
       </div>
       
-      {/* 模式选择 */}
-      {isPlaying && renderModesSelection()}
+      {/* 关卡信息 */}
+      {isPlaying && renderLevelInfo()}
       
       {/* 游戏区域 */}
       <div 
@@ -857,10 +768,11 @@ export default function StressReliefGame() {
               style={getItemStyle(item)}
               onClick={() => !item.isBroken && handleItemClick(item)}
               whileHover={!item.isBroken ? { scale: 1.1 } : {}}
-              initial={!item.isBroken ? { scale: 0 } : {}}
-              animate={!item.isBroken ? (isClient ? { 
+              initial={{ scale: 0, opacity: 0 }}
+              animate={!item.isBroken ? {
                 scale: 1,
-                y: [item.y, item.y - 10, item.y], // 轻微的上下浮动动画
+                opacity: 1,
+                y: [item.y, item.y - 8, item.y], // 轻微的上下浮动动画
                 transition: {
                   y: {
                     repeat: Infinity,
@@ -868,9 +780,16 @@ export default function StressReliefGame() {
                     ease: "easeInOut"
                   }
                 }
-              } : { scale: 1 }) : {}}
+              } : {
+                scale: 0.9,
+                opacity: 0.5
+              }}
               exit={{ scale: 0, opacity: 0 }}
-              transition={{ type: 'spring', damping: 10 }}
+              transition={{ 
+                type: 'spring', 
+                damping: 12,
+                stiffness: 100 
+              }}
             >
               {renderBrokenEffect(item)}
             </motion.div>
@@ -888,9 +807,34 @@ export default function StressReliefGame() {
         </AnimatePresence>
         
         {/* 开始提示 */}
-        {isPlaying && items.length === 0 && (
+        {isPlaying && items.length === 0 && !levelComplete && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-gray-500">物品即将出现，准备好互动吧！</p>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-gray-500 bg-white/80 px-4 py-2 rounded-full shadow-sm"
+            >
+              气球即将出现，准备好互动吧！
+            </motion.p>
+          </div>
+        )}
+        
+        {/* 关卡完成提示 */}
+        {isPlaying && levelComplete && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white p-6 rounded-xl shadow-lg text-center"
+            >
+              <h3 className="text-2xl font-bold text-pink-600 mb-2">恭喜完成！</h3>
+              <p className="text-gray-700 mb-4">你已成功完成 {currentLevel.name}</p>
+              {currentLevel.id < LEVELS.length ? (
+                <p className="text-gray-500">即将进入下一关...</p>
+              ) : (
+                <p className="text-gray-500">你已完成所有关卡！</p>
+              )}
+            </motion.div>
           </div>
         )}
       </div>
@@ -898,7 +842,13 @@ export default function StressReliefGame() {
       {/* 分数显示 */}
       {isPlaying && (
         <div className="mt-4 text-center">
-          <p className="text-xl font-bold">快乐指数: {score}</p>
+          <div className="inline-block px-6 py-2 bg-pink-100 rounded-full">
+            <p className="text-xl font-bold">
+              <span className="text-gray-700">分数: </span>
+              <span className="text-pink-600">{score}</span>
+              <span className="text-gray-400"> / {currentLevel.target}</span>
+            </p>
+          </div>
         </div>
       )}
       
@@ -906,4 +856,6 @@ export default function StressReliefGame() {
       {renderConfetti()}
     </div>
   );
-} 
+};
+
+export default StressReliefGame; 
