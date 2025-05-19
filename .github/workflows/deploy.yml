@@ -23,4 +23,4 @@ jobs:
         run: |
           npm install -g @openai/codex
           export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
-          codex -a auto-edit --quiet "update CHANGELOG for next release"
+          codex -a full-auto "update CHANGELOG and README"
