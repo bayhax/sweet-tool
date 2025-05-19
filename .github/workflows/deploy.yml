@@ -1,10 +1,9 @@
 name: Update changelog via Codex
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-      - dev
 
 jobs:
   update-changelog:
@@ -23,4 +22,4 @@ jobs:
         run: |
           npm install -g @openai/codex
           export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
-          codex -a full-auto "update CHANGELOG and README"
+          codex -a auto-edit --quiet "基于该分支，写一个PR review, 检查问题"
