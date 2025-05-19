@@ -1,5 +1,18 @@
-y- name: Update changelog via Codex
-  run: |
-    npm install -g @openai/codex
-    export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
-    codex -a auto-edit --quiet "update CHANGELOG for next release"
+name: Update changelog via Codex
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Update changelog via Codex
+      run: |
+        npm install -g @openai/codex
+        export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+        codex -a auto-edit --quiet "update CHANGELOG for next release"
