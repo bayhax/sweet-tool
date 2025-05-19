@@ -1,4 +1,4 @@
-name: Update changelog via Codex
+name: Update PR Description via Codex
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  update-changelog:
+  update-pr-description:
     runs-on: ubuntu-latest
     
     steps:
@@ -47,4 +47,4 @@ jobs:
               repo,
               issue_number,
               body: "🤖 我已自动更新了PR描述"
-            });
+            }); 
