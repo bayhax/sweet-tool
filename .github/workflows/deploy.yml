@@ -1,4 +1,4 @@
-name: Update changelog via Codex
+name: Update PR Description via Codex
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  update-changelog:
+  update-pr-description:
     runs-on: ubuntu-latest
     
     steps:
@@ -23,7 +23,7 @@ jobs:
         run: |
           npm install -g @openai/codex
           export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
-          PR_CONTENT=$(codex -a auto-edit --quiet "基于该分支，生成一个详细的PR描述，包括变更内容、影响范围和主要修改点")
+          PR_CONTENT=$(codex -a auto-edit "基于该分支，生成一个详细的PR描述，包括变更内容、影响范围和主要修改点")
           echo "PR_CONTENT<<EOF" >> $GITHUB_ENV
           echo "$PR_CONTENT" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
@@ -47,4 +47,4 @@ jobs:
               repo,
               issue_number,
               body: "🤖 我已自动更新了PR描述"
-            });
+            }); 
