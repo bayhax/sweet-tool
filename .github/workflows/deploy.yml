@@ -3,81 +3,20 @@ name: Update PR Description via Codex
 on:
   pull_request:
     types: [opened, reopened, ready_for_review]
-
+  issue_comment:
 jobs:
-  update-pr:
+  pr_agent_job:
     if: ${{ github.event.sender.type != 'Bot' }}
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
       contents: write
-    
+    name: Run pr agent on every pull request, respond to user comments
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 设置 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.1.0'
-
-      - name: 生成PR描述
-        id: generate-description
-        run: |
-          npm install -g @openai/codex
-          export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
-          
-          # 创建临时文件存储PR描述模板
-          cat > pr_template.md << 'EOL'
-          ## 🔄 变更内容
-
-          {changes}
-
-          ## 🎯 影响范围
-
-          {impacts}
-
-          ## ✅ 测试建议
-
-          {testing}
-          EOL
-          
-          # 使用临时文件获取格式化的输出
-          CHANGES=$(codex -a auto-edit --quiet "分析当前分支的代码变更，简要描述主要改动点" | grep -v "^>")
-          IMPACTS=$(codex -a auto-edit --quiet "分析当前分支的代码变更可能影响的范围和模块" | grep -v "^>")
-          TESTING=$(codex -a auto-edit --quiet "基于代码变更，提供具体的测试建议" | grep -v "^>")
-          
-          # 替换模板中的占位符
-          PR_CONTENT=$(cat pr_template.md)
-          PR_CONTENT=${PR_CONTENT/\{changes\}/$CHANGES}
-          PR_CONTENT=${PR_CONTENT/\{impacts\}/$IMPACTS}
-          PR_CONTENT=${PR_CONTENT/\{testing\}/$TESTING}
-          
-          # 保存到环境变量
-          echo "PR_CONTENT<<EOF" >> $GITHUB_ENV
-          echo "$PR_CONTENT" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: 更新PR描述
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { pull_request } = context.payload;
-            
-            // 更新PR描述
-            await github.rest.pulls.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pull_request.number,
-              body: process.env.PR_CONTENT
-            });
-            
-            // 添加评论通知
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pull_request.number,
-              body: "🤖 PR描述已更新，包含了变更内容、影响范围和测试建议。"
-            });
+      - name: PR Agent action step
+        id: pragent
+        uses: Codium-ai/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
