@@ -3,20 +3,54 @@ name: Update PR Description via Codex
 on:
   pull_request:
     types: [opened, reopened, ready_for_review]
-  issue_comment:
+
 jobs:
-  pr_agent_job:
+  update-pr:
     if: ${{ github.event.sender.type != 'Bot' }}
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
       contents: write
-    name: Run pr agent on every pull request, respond to user comments
+    
     steps:
-      - name: PR Agent action step
-        id: pragent
-        uses: Codium-ai/pr-agent@main
-        env:
-          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.1.0'
+
+      - name: 生成PR描述
+        id: generate-description
+        run: |
+          npm install -g @openai/codex
+          export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+          # 将codex输出保存到环境变量
+          echo "PR_CONTENT<<EOF" >> $GITHUB_ENV
+          codex -a auto-edit --quiet "基于当前分支的更改，生成一个详细的PR描述，包括：1. 主要变更内容 2. 影响范围 3. 测试建议" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: 更新PR描述
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { pull_request } = context.payload;
+            
+            // 更新PR描述
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pull_request.number,
+              body: process.env.PR_CONTENT
+            });
+            
+            // 添加评论通知
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pull_request.number,
+              body: "🤖 我已经使用Codex更新了PR描述，请检查是否符合要求。"
+            });
