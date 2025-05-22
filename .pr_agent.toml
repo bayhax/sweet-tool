@@ -2,3 +2,4 @@
 model = "gpt-4o"
 model_turbo = "gpt-4o"
 fallback_models = ["gpt-4o", "gpt-4o"]
+response_language = "zh-CN"
