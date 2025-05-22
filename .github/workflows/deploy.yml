@@ -1,4 +1,4 @@
-name: Update PR Description via Codex
+name: Update PR Description via pr-agent
 
 on:
   pull_request:
