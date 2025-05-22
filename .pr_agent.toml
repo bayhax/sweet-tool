@@ -1,6 +1,5 @@
 [config]
-model = "gpt-4o"
-model_turbo = "gpt-4o"
-fallback_models = ["gpt-4o", "gpt-4o"]
+model = "gpt-4o-2024-08-06"
+model_turbo = "gpt-4o-2024-08-06"
+fallback_models = ["gpt-4o-2024-08-06"]
 response_language = "zh-CN"
-extra_instructions = "用中文回答"
