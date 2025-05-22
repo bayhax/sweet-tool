@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FaHeart, FaRegSadTear, FaAngry } from 'react-icons/fa';
+import { PiNotePencilFill } from 'react-icons/pi';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
@@ -30,6 +31,14 @@ const tools = [
     icon: <FaAngry className="text-red-500" />,
     color: 'bg-red-100 hover:bg-red-200',
     link: '/tools/stressrelief'
+  },
+  {
+    id: 'lovenotes',
+    title: '爱的小纸条',
+    description: '写下甜蜜的话语，对方打开链接时会看到飘落的纸条效果，浪漫又温馨',
+    icon: <PiNotePencilFill className="text-purple-500" />,
+    color: 'bg-purple-100 hover:bg-purple-200',
+    link: '/tools/lovenotes'
   },
   // 未来可以添加更多工具
 ];
