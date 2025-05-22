@@ -9,3 +9,6 @@ extra_instructions = "请用中文回复，并且要详细分析代码质量"
   
 [pr_description]  
 extra_instructions = "请用中文生成PR描述，包含详细的变更说明"
+
+[pr_code_suggestions]  
+extra_instructions = "请用中文提供代码建议，并详细解释改进原因"
