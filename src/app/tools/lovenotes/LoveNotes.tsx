@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaHeart, FaPen, FaPaperPlane, FaRedo, FaCopy } from 'react-icons/fa';
+import { FaHeart, FaPen, FaPaperPlane, FaRedo, FaCopy, FaTimes } from 'react-icons/fa';
 import { IoIosPaper } from 'react-icons/io';
 import { PiNotePencilFill } from 'react-icons/pi';
 import confetti from 'canvas-confetti';
@@ -48,6 +48,7 @@ export default function LoveNotes() {
   const [mode, setMode] = useState<'create' | 'view'>('create');
   const [copied, setCopied] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const confettiRef = useRef<HTMLDivElement>(null);
   
   // 从URL参数中读取笔记
@@ -63,7 +64,7 @@ export default function LoveNotes() {
         if (decodedNotes && Array.isArray(decodedNotes)) {
           decodedNotes.forEach((note, index) => {
             if (note.delay === undefined) {
-              note.delay = index * 0.1;
+              note.delay = index * 0.15;
             }
           });
         }
@@ -78,13 +79,13 @@ export default function LoveNotes() {
   }, []);
   
   // 生成随机位置、旋转和缩放
-  const generateRandomProps = (index: number) => {
+  const generateRandomProps = (index: number, textLength: number) => {
     // 根据索引计算扩散角度和距离
     const angle = Math.random() * Math.PI * 2; // 随机角度 0-360度
     
-    // 根据索引增加扩散距离，越靠后的纸条扩散得越远
-    const minDistance = 5; // 最小距离
-    const maxDistance = 50 + (index * 5); // 根据索引增加最大距离
+    // 统一的距离设置，因为纸条大小现在比较一致
+    const minDistance = 80;
+    const maxDistance = 120 + (index * 12);
     const distance = minDistance + Math.random() * (maxDistance - minDistance);
     
     // 使用极坐标转换为笛卡尔坐标
@@ -95,8 +96,8 @@ export default function LoveNotes() {
       x,
       y,
       rotation: Math.random() * 30 - 15,
-      scale: 0.8 + Math.random() * 0.4,
-      delay: index * 0.1, // 添加延迟，让纸条依次出现
+      scale: 0.85 + Math.random() * 0.3, // 统一的缩放范围
+      delay: index * 0.15,
     };
   };
   
@@ -105,7 +106,7 @@ export default function LoveNotes() {
     if (!currentNote.trim()) return;
     
     const color = colors[Math.floor(Math.random() * colors.length)];
-    const { x, y, rotation, scale, delay } = generateRandomProps(notes.length);
+    const { x, y, rotation, scale, delay } = generateRandomProps(notes.length, currentNote.length);
     
     const newNote: Note = {
       id: Date.now().toString(),
@@ -164,56 +165,97 @@ export default function LoveNotes() {
     setShowPresets(false);
   };
   
+  // 点击纸条查看完整内容
+  const handleNoteClick = (note: Note) => {
+    if (mode === 'view') {
+      setSelectedNote(note);
+    }
+  };
+  
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div ref={confettiRef} className="relative min-h-[60vh] bg-white p-6 rounded-lg shadow-lg">
-        {/* 标题 */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-pink-600 flex items-center justify-center gap-2">
-            <PiNotePencilFill />
-            爱的小纸条
-          </h1>
-          <p className="text-gray-600 mt-2">
-            {mode === 'create' 
-              ? '写下你的甜蜜话语，创建爱的小纸条' 
-              : '收到一份特别的惊喜，爱的小纸条飘落~'}
-          </p>
-        </div>
+        {/* 标题 - 只在创建模式下显示 */}
+        {mode === 'create' && (
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-pink-600 flex items-center justify-center gap-2">
+              <PiNotePencilFill />
+              爱的小纸条
+            </h1>
+            <p className="text-gray-600 mt-2">
+              写下你的甜蜜话语，创建爱的小纸条
+            </p>
+          </div>
+        )}
         
         {/* 飘落的纸条区域 */}
-        <div className="relative min-h-[300px] border-2 border-dashed border-pink-200 rounded-lg p-4 mb-6">
+        <div className={`relative ${mode === 'create' ? 'min-h-[400px]' : 'min-h-[80vh]'} border-2 border-dashed border-pink-200 rounded-lg p-4 mb-6 overflow-hidden`}>
           <div className="absolute left-1/2 top-1/2 w-0 h-0 -translate-x-1/2 -translate-y-1/2" style={{ zIndex: 1 }}>
             <AnimatePresence>
-              {notes.map((note) => (
-                <motion.div
-                  key={note.id}
-                  className={`absolute p-4 rounded shadow-md ${note.color} transform max-w-[200px]`}
-                  initial={{ x: 0, y: 0, opacity: 0, scale: 0.5 }}
-                  animate={{ 
-                    x: note.x,
-                    y: note.y, 
-                    opacity: 1,
-                    rotate: note.rotation,
-                    scale: note.scale
-                  }}
-                  transition={{ 
-                    type: 'spring',
-                    stiffness: 50,
-                    damping: 15,
-                    duration: 1,
-                    delay: note.delay || 0
-                  }}
-                  whileHover={{ scale: note.scale * 1.1, zIndex: 10 }}
-                  style={{ 
-                    transformOrigin: 'center center',
-                  }}
-                >
-                  <div className="flex items-start">
-                    <IoIosPaper className="text-pink-500 mr-2 mt-1 flex-shrink-0" />
-                    <p className="text-gray-800 font-medium break-words">{note.text}</p>
-                  </div>
-                </motion.div>
-              ))}
+              {notes.map((note, index) => {
+                const isLongText = note.text.length > 15; // 降低长文本阈值
+                
+                // 获取预览文本
+                const getPreviewText = () => {
+                  if (mode === 'create') {
+                    return note.text; // 创建模式显示完整文本
+                  }
+                  
+                  if (isLongText) {
+                    return note.text.substring(0, 8) + '...'; // 长文本只显示前8个字
+                  }
+                  
+                  return note.text; // 短文本显示完整
+                };
+                
+                return (
+                  <motion.div
+                    key={note.id}
+                    className={`absolute p-3 rounded shadow-lg ${note.color} transform max-w-[160px] cursor-pointer`}
+                    initial={{ x: 0, y: 0, opacity: 0, scale: 0.3 }}
+                    animate={{ 
+                      x: note.x,
+                      y: note.y, 
+                      opacity: 1,
+                      rotate: note.rotation,
+                      scale: note.scale
+                    }}
+                    transition={{ 
+                      type: 'spring',
+                      stiffness: 60,
+                      damping: 20,
+                      duration: 1.2,
+                      delay: note.delay || 0
+                    }}
+                    whileHover={{ 
+                      scale: note.scale * 1.15, 
+                      zIndex: 20,
+                      rotate: 0,
+                      transition: { duration: 0.2 }
+                    }}
+                    onClick={() => handleNoteClick(note)}
+                    style={{ 
+                      transformOrigin: 'center center',
+                      zIndex: 10 - index,
+                    }}
+                  >
+                    <div className="flex items-start">
+                      <IoIosPaper className="text-pink-500 mr-2 mt-1 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-gray-800 font-medium break-words text-sm leading-relaxed">
+                          {getPreviewText()}
+                        </p>
+                        {/* 长文本提示 */}
+                        {isLongText && mode === 'view' && (
+                          <div className="mt-1 text-xs text-pink-400 text-center">
+                            点击查看更多
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </div>
           
@@ -320,19 +362,59 @@ export default function LoveNotes() {
             </div>
           </div>
         )}
+        
+        {/* 查看模式下的温馨提示 */}
+        {mode === 'view' && notes.length > 0 && (
+          <div className="text-center mt-6">
+            <p className="text-pink-500 text-lg font-medium">💕 有人为你准备了特别的惊喜 💕</p>
+            <p className="text-gray-600 text-sm mt-2">点击纸条可以查看完整内容</p>
+          </div>
+        )}
       </div>
       
-      {/* 使用说明 */}
-      <div className="mt-8 bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-xl font-semibold text-pink-600 mb-3">如何使用爱的小纸条</h2>
-        <ol className="list-decimal pl-5 space-y-2 text-gray-700">
-          <li>在文本框中输入你想表达的甜蜜话语</li>
-          <li>点击"添加纸条"将话语添加到纸条墙上</li>
-          <li>你可以添加多个纸条，每个都会有不同的颜色和位置</li>
-          <li>完成后点击"生成链接"，然后复制链接</li>
-          <li>将链接发送给你的心上人，当他/她打开链接时，将看到你的爱意纸条飘落的浪漫场景</li>
-        </ol>
-      </div>
+      {/* 使用说明 - 只在创建模式下显示 */}
+      {mode === 'create' && (
+        <div className="mt-8 bg-white p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold text-pink-600 mb-3">如何使用爱的小纸条</h2>
+          <ol className="list-decimal pl-5 space-y-2 text-gray-700">
+            <li>在文本框中输入你想表达的甜蜜话语</li>
+            <li>点击"添加纸条"将话语添加到纸条墙上</li>
+            <li>你可以添加多个纸条，每个都会有不同的颜色和位置</li>
+            <li>完成后点击"生成链接"，然后复制链接</li>
+            <li>将链接发送给你的心上人，当他/她打开链接时，将看到你的爱意纸条飘落的浪漫场景</li>
+          </ol>
+        </div>
+      )}
+      
+      {/* 纸条详情弹窗 */}
+      {selectedNote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.5, opacity: 0 }}
+            className={`${selectedNote.color} p-6 rounded-lg shadow-xl max-w-lg w-full relative max-h-[80vh] overflow-y-auto`}
+          >
+            <button
+              onClick={() => setSelectedNote(null)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 bg-white rounded-full p-1 shadow-md"
+            >
+              <FaTimes />
+            </button>
+            <div className="flex items-start pr-8">
+              <IoIosPaper className="text-pink-500 mr-3 mt-1 flex-shrink-0 text-xl" />
+              <div>
+                <p className="text-gray-800 font-medium text-base leading-relaxed whitespace-pre-wrap">
+                  {selectedNote.text}
+                </p>
+                <div className="mt-4 text-xs text-gray-500 text-center">
+                  💕 点击空白处关闭 💕
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 } 
